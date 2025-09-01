@@ -1,8 +1,0 @@
-@import "tailwindcss";
-@config "../tailwind.config.js";
-
-html, body, #root { height: 100%; }
-body {
-  background-color: #F7F7FB; /* avoid @apply for arbitrary color */
-  @apply text-gray-900;
-}
