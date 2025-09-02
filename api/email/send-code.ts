@@ -3,14 +3,17 @@ export const config = { runtime: 'nodejs' }
 import { Resend } from 'resend'
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
+  if (req.method !== 'POST') return json({ error: 'Method Not Allowed' }, 405)
   try {
-    const { to, code } = await req.json()
-    if (!to || !code) return new Response('to and code are required', { status: 400 })
+    const { to, code, from, replyTo } = await req.json()
+    if (!to || !code) return json({ error: 'to and code are required' }, 400)
 
     const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
-    const RESEND_FROM = process.env.RESEND_FROM || 'no-reply@example.com'
-    if (!RESEND_API_KEY) return new Response('RESEND_API_KEY missing', { status: 500 })
+    const ENV_FROM = process.env.RESEND_FROM
+    const fallbackFrom = 'onboarding@resend.dev'
+    const fromAddress = String(from || ENV_FROM || fallbackFrom)
+    const replyToAddress = process.env.RESEND_REPLY_TO || replyTo
+    if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY missing' }, 500)
 
     const resend = new Resend(RESEND_API_KEY)
     const subject = 'Ваш код доступу до AI English Interviewer'
@@ -23,13 +26,16 @@ export default async function handler(req: Request): Promise<Response> {
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0" />
         <p style="font-size:12px;color:#64748b">AI English Interviewer</p>
       </div>`
-    const r = await resend.emails.send({ from: RESEND_FROM, to, subject, html })
-    if ((r as any)?.error) return new Response(String((r as any).error), { status: 500 })
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    const payload: any = { from: fromAddress, to, subject, html }
+    if (replyToAddress) payload.replyTo = replyToAddress
+    const r = await resend.emails.send(payload)
+    if ((r as any)?.error) return json({ error: (r as any).error, hint: 'Verify RESEND_FROM domain (SPF/DKIM) or use onboarding@resend.dev' }, 500)
+    return json({ ok: true }, 200)
   } catch (e: any) {
-    return new Response(String(e?.message || e), { status: 500 })
+    return json({ error: String(e?.message || e) }, 500)
   }
 }
 
-
-
+function json(obj: unknown, status = 200): Response {
+  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } })
+}
