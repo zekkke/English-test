@@ -1,4 +1,4 @@
-export const config = { runtime: 'edge' }
+export const config = { runtime: 'nodejs' }
 
 import { Resend } from 'resend'
 
@@ -30,5 +30,6 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response(String(e?.message || e), { status: 500 })
   }
 }
+
 
 
