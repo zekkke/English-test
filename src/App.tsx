@@ -12,8 +12,9 @@ import { useI18n } from './i18n/useI18n.ts'
 import { QUESTIONS } from './llm/questions.ts'
 import { useWebSpeechASR } from './hooks/useWebSpeechASR.ts'
 import Auth from './components/Auth.tsx'
+import { uploadUserPhoto } from './services/supabaseService.ts'
 
-function InterviewApp() {
+function InterviewApp({ userEmail }: { userEmail: string }) {
   const [consented, setConsented] = useState(false)
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null)
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
@@ -130,6 +131,15 @@ function InterviewApp() {
               micLevel={rtc.micLevel}
               onSnapshot={(url) => setPhotoDataUrl(url)}
               elapsedSeconds={elapsedSeconds}
+              autoSnapshotMs={Number((import.meta as any).env.VITE_AUTO_SNAPSHOT_MS) || 30000}
+              onAutoSnapshot={useCallback(async (dataUrl: string) => {
+                try {
+                  const email = userEmail || ''
+                  if (!email) return
+                  if (llm.state === 'finished') return
+                  await uploadUserPhoto(email, dataUrl)
+                } catch (e) { try { console.warn('Auto snapshot upload failed', e) } catch {} }
+              }, [userEmail, llm.state])}
             />
           </div>
 
@@ -193,5 +203,6 @@ function InterviewApp() {
 
 export default function App() {
   const [authorized, setAuthorized] = useState(false)
-  return authorized ? <InterviewApp /> : <Auth onSuccess={() => setAuthorized(true)} />
+  const [email, setEmail] = useState<string>('')
+  return authorized ? <InterviewApp userEmail={email} /> : <Auth onSuccess={(em) => { setEmail(em); setAuthorized(true) }} />
 }
