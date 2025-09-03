@@ -178,7 +178,7 @@ function InterviewApp({ userEmail }: { userEmail: string }) {
             {/* Dialog list */}
             <div className="mb-3">
               <div className="text-sm text-gray-500 mb-2">Діалог</div>
-              <div className="max-h-132 overflow-auto pr-1">
+              <div className="max-h-122 overflow-auto pr-1">
                 <TranscriptList messages={llm.messages} />
               </div>
             </div>
