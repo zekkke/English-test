@@ -20,6 +20,8 @@ export default function Auth({ onSuccess }: Props) {
 
   // Sign up form state
   const [suEmail, setSuEmail] = useState('')
+  const [suFirstName, setSuFirstName] = useState('')
+  const [suLastName, setSuLastName] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +37,11 @@ export default function Auth({ onSuccess }: Props) {
 
   const emailRegex = useMemo(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/, [])
   const suValidEmail = emailRegex.test(suEmail)
+  const suValidNames = suFirstName.trim().length > 1 && suLastName.trim().length > 1
   const liValid = emailRegex.test(liEmail) && /^\d{6}$/.test(liCode)
+
+  // Feature flag: e-mail delivery can be disabled without removing code paths
+  const EMAIL_ENABLED = (import.meta as any).env.VITE_EMAIL_ENABLED === 'true'
 
   // Autofocus
   const signupEmailRef = useRef<HTMLInputElement | null>(null)
@@ -94,7 +100,7 @@ export default function Auth({ onSuccess }: Props) {
   const handleSignupConfirm = async () => {
     setInfo(null); setError(null)
     if (!suValidEmail) { setError('Некоректний e‑mail.'); return }
-    const code = generateCode()
+    if (!suValidNames) { setError('Вкажіть ім’я та прізвище (мін. 2 символи).'); return }
 
     // Upload photo to Supabase Storage (bucket: English test/sessions/<email>/photo_*.jpg)
     let storagePath: string | undefined
@@ -108,28 +114,45 @@ export default function Auth({ onSuccess }: Props) {
       setError('Не вдалося завантажити фото до сховища. Перевірте .env для Supabase.')
       return
     }
-
-    // Надіслати код на пошту через dev middleware Resend
-    try {
-      const r = await fetch('/api/email/send-code', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: suEmail, code })
-      })
-      if (!r.ok) throw new Error(`email send failed: ${r.status}`)
-      setInfo('Код надіслано на вашу пошту')
-    } catch (e: any) {
-      console.warn('Email send failed', e)
-      setInfo('Код згенеровано, але лист не вдалося надіслати. Перевірте налаштування .env (RESEND_API_KEY/RESEND_FROM).')
+    
+    if (EMAIL_ENABLED) {
+      const code = generateCode()
+      try {
+        const r = await fetch('/api/email/send-code', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: suEmail, code })
+        })
+        if (!r.ok) throw new Error(`email send failed: ${r.status}`)
+        setInfo('Код надіслано на вашу пошту')
+      } catch (e: any) {
+        console.warn('Email send failed', e)
+        setInfo('Код згенеровано, але лист не вдалося надіслати. Перевірте налаштування .env (RESEND_API_KEY/RESEND_FROM).')
+      }
+      signupStore.set(suEmail, { code, photo: photoUrl ?? null, ts: Date.now(), storagePath })
+      setTimeout(() => {
+        setLiEmail(suEmail)
+        setLiCode('')
+        setView('login')
+      }, 700)
+      return
     }
 
-    signupStore.set(suEmail, { code, photo: photoUrl ?? null, ts: Date.now(), storagePath })
+    // Без e‑mail: одразу створюємо початковий запис метрик і пускаємо до тесту
+    try {
+      await insertInterviewMetrics({
+        candidate_id: suEmail,
+        session_id: `${suEmail}-${Date.now()}`,
+        privacy_events: { firstName: suFirstName.trim(), lastName: suLastName.trim() },
+        raw_key: storagePath ?? 'signup',
+      })
+    } catch (e: any) {
+      console.error('Insert metrics (signup) failed', e)
+      setError('Не вдалося зробити початковий запис метрик. Перевірте таблицю/права.')
+      return
+    }
 
-    // Перехід на логін з підставленим e‑mail
-    setTimeout(() => {
-      setLiEmail(suEmail)
-      setLiCode('')
-      setView('login')
-    }, 700)
+    setView('success')
+    setTimeout(() => onSuccess?.(suEmail), 500)
   }
 
   const handleLoginConfirm = async () => {
@@ -187,6 +210,26 @@ export default function Auth({ onSuccess }: Props) {
         {view === 'signup' && (
           <div className="rounded-2xl bg-[linear-gradient(to_bottom_right,_#6F6F6F,_#313131)] shadow-lg p-6 text-white">
             <div className="text-xl font-semibold mb-4">Create account</div>
+            <label className="block text-sm mb-1" htmlFor="signup-first">First name</label>
+            <input
+              id="signup-first"
+              aria-label="First name"
+              type="text"
+              placeholder="John"
+              value={suFirstName}
+              onChange={(e) => setSuFirstName(e.target.value)}
+              className="w-full h-11 rounded-xl px-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
+            <label className="block text-sm mt-3 mb-1" htmlFor="signup-last">Last name</label>
+            <input
+              id="signup-last"
+              aria-label="Last name"
+              type="text"
+              placeholder="Doe"
+              value={suLastName}
+              onChange={(e) => setSuLastName(e.target.value)}
+              className="w-full h-11 rounded-xl px-3 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-600"
+            />
             <label className="block text-sm mb-1" htmlFor="signup-email">Email</label>
             <input
               id="signup-email"
@@ -220,7 +263,7 @@ export default function Auth({ onSuccess }: Props) {
               >Take a photo</button>
               <button
                 className="h-10 px-5 rounded-2xl text-sm font-medium text-white bg-gradient-to-r from-brand-600 to-brand-700 shadow disabled:opacity-40"
-                disabled={!suValidEmail}
+                disabled={!suValidEmail || !suValidNames || !photoUrl}
                 onClick={handleSignupConfirm}
               >Confirm</button>
             </div>
