@@ -59,11 +59,20 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
               e.style.backdropFilter = 'none'
               e.style.filter = 'none'
               e.style.boxShadow = 'none'
+              // Заборона градієнтів/зображень, які можуть містити oklch/oklab
+              e.style.backgroundImage = 'none'
+              e.style.background = e.style.background || 'transparent'
               properties.forEach((p) => {
                 const v = (cs as any)[p]
                 if (v && typeof v === 'string') {
                   // браузер повертає обчислене значення (зазвичай rgb/rgba); задаємо інлайном
-                  ;(e.style as any)[p] = v
+                  if (/oklch\(|oklab\(/i.test(v)) {
+                    // жорсткий фолбек, щоб html2canvas не падав
+                    const fallback = p === 'color' || p === 'stroke' ? '#111111' : '#ffffff'
+                    ;(e.style as any)[p] = fallback
+                  } else {
+                    ;(e.style as any)[p] = v
+                  }
                 }
               })
             })
@@ -179,5 +188,3 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
     </div>
   )
 }
-
-
