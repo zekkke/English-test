@@ -77,14 +77,14 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
                 }
               })
             })
-            // Після інлайнів — прибираємо стилі з head, щоб уникнути повторного парсингу оригінальних правил
-            doc.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => { try { el.parentElement?.removeChild(el) } catch {} })
+            // Залишаємо глобальні стилі, щоб не зламати макет; кольори вже інлайн‑нормалізовані
           }
         },
       } as const
 
-      // Спроба №1: рендер самого вузла
-      let canvas = await html2canvas(node, { ...baseOptions, foreignObjectRendering: false })
+      // Спроба №1: рендер самого вузла (вищий scale у проді покращує різкість)
+      const desiredScale = Math.max(2, (baseOptions as unknown as { scale?: number }).scale || 2)
+      let canvas = await html2canvas(node, { ...baseOptions, foreignObjectRendering: false, scale: desiredScale })
 
       // Якщо канвас підозріло малий/порожній — Спроба №2: рендер body із кропом по bbox карти
       if (!canvas || canvas.width < 50 || canvas.height < 50) {
@@ -100,22 +100,24 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
       }
 
       const imgData = canvas.toDataURL('image/png')
+      // Вирівнюємо масштaб і поля, щоб контент поміщався коректно
       const pdf = new jsPDF({ unit: 'pt', format: 'a4' })
       const pageWidth = pdf.internal.pageSize.getWidth()
       const pageHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = pageWidth
+      const margin = 24
+      const imgWidth = pageWidth - margin * 2
       const imgHeight = (canvas.height * imgWidth) / canvas.width
 
       let heightLeft = imgHeight
       let position = 0
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      pdf.addImage(imgData, 'PNG', margin, position + margin, imgWidth, imgHeight)
       heightLeft -= pageHeight
 
       while (heightLeft > 0) {
         position = position - pageHeight
         pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+        pdf.addImage(imgData, 'PNG', margin, position + margin, imgWidth, imgHeight)
         heightLeft -= pageHeight
       }
 
