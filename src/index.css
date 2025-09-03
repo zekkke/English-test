@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+html, body, #root { height: 100%; }
+body {
+  /* Graphite gradient from bottom-right to top-left */
+  background: linear-gradient(to top left, #050608 0%, #0d0f13 50%, #191d25 100%);
+  @apply text-gray-900;
+}
