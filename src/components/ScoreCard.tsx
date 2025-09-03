@@ -51,7 +51,7 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
           if (root) {
             root.style.backgroundColor = '#ffffff'
             root.style.color = '#111111'
-            const properties = ['color','backgroundColor','borderColor','outlineColor','fill','stroke'] as const
+            const properties = ['color','backgroundColor','borderColor','outlineColor','fill','stroke','background'] as const
             // прибрати можливі фільтри/градієнти та конвертувати кольори у rgb
             root.querySelectorAll('*').forEach((node) => {
               const e = node as HTMLElement
@@ -62,6 +62,7 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
               // Заборона градієнтів/зображень, які можуть містити oklch/oklab
               e.style.backgroundImage = 'none'
               e.style.background = e.style.background || 'transparent'
+              e.style.borderImage = 'none'
               properties.forEach((p) => {
                 const v = (cs as any)[p]
                 if (v && typeof v === 'string') {
@@ -76,6 +77,8 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
                 }
               })
             })
+            // Після інлайнів — прибираємо стилі з head, щоб уникнути повторного парсингу оригінальних правил
+            doc.querySelectorAll('link[rel="stylesheet"], style').forEach((el) => { try { el.parentElement?.removeChild(el) } catch {} })
           }
         },
       } as const
