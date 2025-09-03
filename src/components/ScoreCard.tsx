@@ -77,7 +77,26 @@ export function ScoreCard({ photoDataUrl, report, messages = [] }: Props) {
                 }
               })
             })
-            // Залишаємо глобальні стилі, щоб не зламати макет; кольори вже інлайн‑нормалізовані
+            // Додаємо жорсткий CSS-оверрайд, щоб навіть залишкові oklch/oklab у глобальних стилях не завадили
+            const hard = doc.createElement('style')
+            hard.textContent = `
+              [data-pdf-root], [data-pdf-root] * {
+                color: #111111 !important;
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                border-color: #e5e7eb !important;
+                outline-color: #e5e7eb !important;
+                fill: #111111 !important;
+                stroke: #111111 !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+                filter: none !important;
+                backdrop-filter: none !important;
+              }
+              [data-pdf-root] { background-color: #ffffff !important; }
+            `
+            doc.head.appendChild(hard)
           }
         },
       } as const
