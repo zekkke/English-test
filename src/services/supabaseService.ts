@@ -27,16 +27,29 @@ export async function uploadUserPhoto(email: string, dataUrl: string): Promise<{
     if (!r.ok) throw new Error(`upload failed: ${r.status}`)
     return await r.json()
   }
-  const supabase = getSupabaseClient()
-  const folder = `sessions/${email}`
-  const base64 = dataUrl.split(',')[1]
-  const bin = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
-  const fileName = `photo_${Date.now()}.jpg`
-  const path = `${folder}/${fileName}`
-  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, bin, { contentType: 'image/jpeg', upsert: false })
-  if (error) throw error
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
-  return { path, publicUrl: data?.publicUrl }
+  try {
+    const supabase = getSupabaseClient()
+    const folder = `sessions/${email}`
+    const base64 = dataUrl.split(',')[1]
+    const bin = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+    const fileName = `photo_${Date.now()}.jpg`
+    const path = `${folder}/${fileName}`
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, bin, { contentType: 'image/jpeg', upsert: false })
+    if (error) throw error
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path)
+    try { console.log('[storage] photo saved', path) } catch {}
+    return { path, publicUrl: data?.publicUrl }
+  } catch (e) {
+    try { console.warn('[uploadUserPhoto] client failed, fallback to backend', e) } catch {}
+    const r = await fetch('/api/supabase/upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, dataUrl })
+    })
+    if (!r.ok) throw new Error(`upload failed (fallback): ${r.status}`)
+    const j = await r.json()
+    try { console.log('[storage] photo saved (backend)', j?.path) } catch {}
+    return j
+  }
 }
 
 export async function insertInterviewMetrics(row: InterviewMetrics) {
@@ -64,5 +77,3 @@ export async function insertInterviewMetrics(row: InterviewMetrics) {
   const { error } = await supabase.from('interview_metrics').insert(payload)
   if (error) throw error
 }
-
-
