@@ -6,11 +6,18 @@ type Props = {
   micLevel: number
   elapsedSeconds: number
   onSnapshot: (dataUrl: string) => void
+  autoSnapshotMs?: number
+  onAutoSnapshot?: (dataUrl: string) => void
 }
 
-export function CameraPanel({ stream, isRecording, micLevel, onSnapshot, elapsedSeconds }: Props) {
+export function CameraPanel({ stream, isRecording, micLevel, onSnapshot, elapsedSeconds, autoSnapshotMs, onAutoSnapshot }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [canSnapshot, setCanSnapshot] = useState(false)
+  const intervalRef = useRef<number | null>(null)
+  const autoCbRef = useRef<((dataUrl: string) => void) | null>(null)
+
+  // Тримати останній колбек у ref, щоб не перезапускати інтервал під час ререндерів
+  useEffect(() => { autoCbRef.current = onAutoSnapshot || null }, [onAutoSnapshot])
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -20,6 +27,7 @@ export function CameraPanel({ stream, isRecording, micLevel, onSnapshot, elapsed
       }
       play()
       setCanSnapshot(true)
+      try { console.log('[camera] stream attached, canSnapshot=true') } catch {}
     }
   }, [stream])
 
@@ -33,9 +41,36 @@ export function CameraPanel({ stream, isRecording, micLevel, onSnapshot, elapsed
     canvas.height = h
     const ctx = canvas.getContext('2d')!
     ctx.drawImage(video as HTMLVideoElement, 0, 0, w, h)
-    const dataUrl = canvas.toDataURL('image/png')
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
     onSnapshot(dataUrl)
+    try { console.log('[camera] snapshot captured (manual)') } catch {}
   }, [onSnapshot])
+
+  // Автоснімки кожні N мс, непомітно
+  useEffect(() => {
+    if (!canSnapshot || !autoSnapshotMs || autoSnapshotMs <= 0) return
+    if (intervalRef.current) window.clearInterval(intervalRef.current)
+    try { console.log('[camera] autoSnapshot enabled', { autoSnapshotMs }) } catch {}
+    intervalRef.current = window.setInterval(() => {
+      try {
+        if (!videoRef.current) return
+        try { console.log('[camera] auto tick') } catch {}
+        const canvas = document.createElement('canvas')
+        const video = videoRef.current
+        const w = (video as HTMLVideoElement).videoWidth
+        const h = (video as HTMLVideoElement).videoHeight
+        if (!w || !h) { try { console.log('[camera] skip tick: video size 0', { w, h }) } catch {}; return }
+        canvas.width = w
+        canvas.height = h
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(video as HTMLVideoElement, 0, 0, w, h)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+        try { console.log('[camera] snapshot captured (auto)') } catch {}
+        if (autoCbRef.current) autoCbRef.current(dataUrl)
+      } catch {}
+    }, autoSnapshotMs)
+    return () => { if (intervalRef.current) window.clearInterval(intervalRef.current); intervalRef.current = null }
+  }, [canSnapshot, autoSnapshotMs])
 
   return (
     <div className="relative h-full flex items-center justify-center">
@@ -67,5 +102,3 @@ export function CameraPanel({ stream, isRecording, micLevel, onSnapshot, elapsed
     </div>
   )
 }
-
-
