@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { LLMProvider } from '../llm/provider'
 import { createLLMProvider } from '../llm/provider'
 
+
 type Message = { role: 'assistant' | 'user' | 'analysis'; text: string; ts?: string }
 type Analysis = {
   questionId: string
@@ -9,13 +10,16 @@ type Analysis = {
   metrics: Record<string, any>
 }
 
+
 type Params = {
   getUserMediaStream: () => MediaStream | null
   onSpeechEnergy: (energy: number) => void
   startOnMount?: boolean
+  manualFinish?: boolean
 }
 
-export function useLLMRealtime({ getUserMediaStream, onSpeechEnergy, startOnMount = false }: Params) {
+
+export function useLLMRealtime({ getUserMediaStream, onSpeechEnergy, startOnMount = false, manualFinish = false }: Params) {
   const providerRef = useRef<LLMProvider | null>(null)
   const [state, setState] = useState<'idle' | 'greeting' | 'asking' | 'listening' | 'speaking' | 'analyzing' | 'finished'>('idle')
   const [messages, setMessages] = useState<Message[]>([])
@@ -77,6 +81,7 @@ export function useLLMRealtime({ getUserMediaStream, onSpeechEnergy, startOnMoun
   }, [])
 
   useEffect(() => {
+    if (manualFinish) return
     if (state !== 'listening') return
     const id = setInterval(() => {
       if (silenceSinceRef.current && Date.now() - silenceSinceRef.current >= 5000) {
@@ -85,7 +90,7 @@ export function useLLMRealtime({ getUserMediaStream, onSpeechEnergy, startOnMoun
       }
     }, 500)
     return () => clearInterval(id)
-  }, [state])
+  }, [state, manualFinish])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
