@@ -1,12 +1,13 @@
 type Props = {
   onRepeat: () => void
   onSkip: () => void
+  onFinishAnswer?: () => void
   canSkip: boolean
   isAndroid?: boolean
   asr?: { start: () => boolean; stop: () => void }
 }
 
-export function Controls({ onRepeat, onSkip, canSkip, isAndroid = false, asr }: Props) {
+export function Controls({ onRepeat, onSkip, onFinishAnswer, canSkip, isAndroid = false, asr }: Props) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -19,6 +20,11 @@ export function Controls({ onRepeat, onSkip, canSkip, isAndroid = false, asr }: 
           onClick={onSkip}
           disabled={!canSkip}
         >Далі</button>
+        <button
+          className="h-10 px-6 rounded-full text-sm font-medium text-white shadow transition-all duration-200 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-600 disabled:opacity-40"
+          onClick={onFinishAnswer}
+          disabled={!onFinishAnswer}
+        >Завершити відповідь</button>
       </div>
       <div>
         {isAndroid && asr && (
