@@ -27,10 +27,12 @@ function InterviewApp({ userEmail }: { userEmail: string }) {
   const llm = useLLMRealtime({
     getUserMediaStream: getStream,
     onSpeechEnergy: rtc.onExternalEnergy,
+    manualFinish: true,
   })
+  const [answerBuffer, setAnswerBuffer] = useState<string>('')
   const asr = useWebSpeechASR({
     lang: 'en-US',
-    onFinal: (text) => llm.submitTranscript(text),
+    onFinal: (text) => setAnswerBuffer((prev) => (prev ? `${prev} ${text}` : text)),
     onError: (err) => console.warn('ASR error', err),
     autoRestart: !isAndroid,
     continuous: !isAndroid,
@@ -100,9 +102,19 @@ function InterviewApp({ userEmail }: { userEmail: string }) {
       }
     } else {
       try { asr.stop() } catch {}
+      setAnswerBuffer('')
     }
     return () => { if (timer) window.clearTimeout(timer) }
   }, [llm.state, isAndroid])
+
+  const handleFinishAnswer = useCallback(() => {
+    try { asr.stop() } catch {}
+    const text = answerBuffer.trim()
+    if (text) {
+      llm.submitTranscript(text)
+    }
+    setAnswerBuffer('')
+  }, [answerBuffer, llm, asr])
 
   const elapsedSeconds = useMemo(() => {
     if (!sessionStartedAt) return 0
@@ -178,7 +190,7 @@ function InterviewApp({ userEmail }: { userEmail: string }) {
             {/* Dialog list */}
             <div className="mb-3">
               <div className="text-sm text-gray-500 mb-2">Діалог</div>
-              <div className="max-h-122 overflow-auto pr-1">
+              <div className="max-h-132 overflow-auto pr-1">
                 <TranscriptList messages={llm.messages} />
               </div>
             </div>
@@ -188,6 +200,7 @@ function InterviewApp({ userEmail }: { userEmail: string }) {
               <Controls
                 onRepeat={llm.repeat}
                 onSkip={llm.skip}
+                onFinishAnswer={llm.state === 'listening' ? handleFinishAnswer : undefined}
                 canSkip={llm.canSkip}
                 isAndroid={isAndroid}
                 asr={asr}
