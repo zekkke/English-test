@@ -18,7 +18,7 @@ export class GeminiProvider implements LLMProvider {
 
   private async bootstrap(params: LLMProviderParams) {
     this.emit({ type: 'state', state: 'greeting' })
-    const hello = "Welcome to the automated assessment system. You are about to take a short English test. Good luck."
+    const hello = "Welcome to the automated assessment system. You are about to take a short English test. Good luck. Are you ready?"
     this.emit({ type: 'assistant_said', text: hello })
     await this.speak(hello)
     await this.connectWebRTC(params)
@@ -153,5 +153,6 @@ export class GeminiProvider implements LLMProvider {
       .then(() => { /* done */ })
   }
 }
+
 
 
