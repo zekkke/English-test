@@ -17,11 +17,11 @@ export class OpenAIProvider implements LLMProvider {
     this.bootstrap()
   }
 
-  private static readonly NEXT_QUESTION_DELAY_MS: number = Number(((import.meta as any).env.VITE_NEXT_QUESTION_DELAY_MS ?? 1200))
+  private static readonly NEXT_QUESTION_DELAY_MS: number = Number(((import.meta as any).env.VITE_NEXT_QUESTION_DELAY_MS ?? 750))
 
   private async bootstrap() {
     this.emit({ type: 'state', state: 'greeting' })
-    const hello = 'Welcome to the automated assessment system. You are about to take a short English test. Good luck.'
+    const hello = 'Welcome to the automated assessment system. You are about to take a short English test. Good luck. Are you ready?'
     this.emit({ type: 'assistant_said', text: hello })
     this.lastAssistantText = hello
     await this.speak(hello)
