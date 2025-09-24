@@ -2,7 +2,11 @@ type Props = {
   onRepeat: () => void
   onFinishAnswer?: () => void
   isAndroid?: boolean
-  asr?: { start: () => boolean; stop: () => void }
+  // Допускаємо як void, так і Promise<void> (різні реалізації ASR)
+  asr?: { start: () => void | Promise<void>; stop: () => void }
+  // Сумісність зі старим викликом у App.tsx
+  onSkip?: () => void
+  canSkip?: boolean
 }
 
 export function Controls({ onRepeat, onFinishAnswer, isAndroid = false, asr }: Props) {
