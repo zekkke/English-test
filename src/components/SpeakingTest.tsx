@@ -15,15 +15,15 @@ type Message = { role: 'assistant' | 'user' | 'analysis'; text: string; ts?: str
 type Analysis = { questionId: string; transcript: string; metrics: Record<string, any>; relevant?: boolean; reply?: string | null }
 
 type Props = {
-  userEmail: string
+  userEmail?: string
   onFinished: (args: { analysis: Analysis[]; messages: Message[]; report: ReturnType<typeof useScoring> extends infer R ? R extends { finalize: (a: any) => infer T } ? T : any : any; timeExpired?: boolean }) => void
 }
 
-export default function SpeakingTest({ userEmail, onFinished }: Props) {
+export default function SpeakingTest({ onFinished }: Props) {
   const TEST_DURATION_SECONDS = Number((import.meta as any).env.VITE_TEST_DURATION_SECONDS) || 15 * 60
   const [consented, setConsented] = useState(false)
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null)
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  // Photo/Snapshot is not used in current flow
   const [timeExpired, setTimeExpired] = useState<boolean>(false)
   const isAndroid = useMemo(() => /Android/i.test(navigator.userAgent) && /Mobile/i.test(navigator.userAgent), [])
 
@@ -32,7 +32,6 @@ export default function SpeakingTest({ userEmail, onFinished }: Props) {
   const llm = useLLMRealtime({ getUserMediaStream: getStream, onSpeechEnergy: rtc.onExternalEnergy, manualFinish: true })
   const [answerBuffer, setAnswerBuffer] = useState<string>('')
   const [webBuffer, setWebBuffer] = useState<string>('')
-  const [asrMode] = useState<'google'>('google')
 
   // Вимкнено: aai/web asr
 
@@ -99,55 +98,7 @@ export default function SpeakingTest({ userEmail, onFinished }: Props) {
       try { localStream?.getTracks().forEach(t => t.stop()) } catch {}
     }
   }, [getStream])
-  const recordAndSendToGoogle = useCallback(async () => {
-    try {
-      let stream = getStream()
-      let localStream: MediaStream | null = null
-      if (!stream) {
-        // fallback: явно запросити мікрофон, якщо RTC ще не ініціалізовано
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        stream = localStream
-      }
-      if (!stream) throw new Error('No media stream')
-      console.log('[GoogleSTT] stream ok, track:', (stream.getAudioTracks()[0] || {}).label)
-      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
-      const mr = new MediaRecorder(stream, { mimeType: mime })
-      const chunks: BlobPart[] = []
-      const blob: Blob = await new Promise((resolve, reject) => {
-        mr.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data) }
-        mr.onerror = (e) => reject(e)
-        mr.onstop = () => resolve(new Blob(chunks, { type: mime }))
-        try { mr.start() } catch (e) { console.error('[GoogleSTT] MediaRecorder start failed', e); reject(e as any) }
-        console.log('[GoogleSTT] recording started')
-        setTimeout(() => { try { mr.stop() } catch {} }, 3000)
-      })
-      console.log('[GoogleSTT] recording stopped, blob bytes =', blob.size)
-      // зупинити локальні треки якщо відкривали тимчасовий потік
-      try { localStream?.getTracks().forEach(t => t.stop()) } catch {}
-      const arrayBuf = await blob.arrayBuffer()
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuf)))
-      const req = {
-        config: {
-          encoding: 'WEBM_OPUS',
-          sampleRateHertz: 48000,
-          languageCode: 'en-US',
-          enableAutomaticPunctuation: true,
-        },
-        audio: { content: b64 },
-      }
-      console.log('[GoogleSTT] request bytes ~', (JSON.stringify(req).length))
-      const r = await fetch('/api/google/stt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) })
-      console.log('[GoogleSTT] response status', r.status)
-      const j: any = await r.json().catch(() => ({}))
-      console.log('[GoogleSTT] response json', j)
-      const text = j?.results?.[0]?.alternatives?.[0]?.transcript || ''
-      if (text) setAnswerBuffer((prev) => (prev ? `${prev} ${text}` : text))
-    } catch (e) {
-      try { console.error('Google STT error', e) } catch {}
-      // Fallback на PCM LINEAR16, якщо MediaRecorder недоступний
-      await recordPcmAndSendToGoogle()
-    }
-  }, [getStream, recordPcmAndSendToGoogle])
+  // Removed old MediaRecorder-based path; using PCM path above
   const scoring = useScoring()
   const { t } = useI18n()
 
@@ -351,5 +302,3 @@ export default function SpeakingTest({ userEmail, onFinished }: Props) {
     </div>
   )
 }
-
-
