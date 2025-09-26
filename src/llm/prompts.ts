@@ -3,8 +3,10 @@
  * Відповідь моделі повинна бути СТРОГО у форматі JSON без додаткового тексту.
  */
 
-export const EVAL_PROMPT = `You are an English speaking examiner acting as a CEFR rater.
-Given the USER transcript, return STRICT JSON only:
+export const EVAL_PROMPT = `You are a stringent CEFR examiner.
+Always return JSON only with ALL fields present (no prose). Numeric scores must be 0..5.
+
+Schema
 {
   "fluency": 0-5,
   "pronunciation": 0-5,
@@ -43,12 +45,9 @@ Level Fit: decide the most likely CEFR level based on all factors.
 
 Output rules
 Always return JSON only, with all fields present.
-
 "keyErrors" must be a list of the most relevant mistakes (max 5).
-
 "feedback" must be short, clear, and constructive.
-
-"rephrases" must include 2–3 corrected/clearer versions of problematic sentences.
+"rephrases" must include 2–3 corrected/clearer versions of problematic sentences.`
 
 export const FOLLOWUP_PROMPTS = [
   'Could you give an example?',
@@ -58,11 +57,12 @@ export const FOLLOWUP_PROMPTS = [
 
 
 // Класифікація доречності відповіді і умовне оцінювання
-export const EVAL_RELEVANCE_PROMPT = `You are an English interviewer.
-Given the QUESTION and the USER answer, first decide if the answer is relevant to the QUESTION.
-If relevant, also return CEFR-like metrics (0-5) for the answer. If not relevant (e.g., user asks another question or ignores the topic), provide a short helpful REPLY to guide the user back to the topic. Always return STRICT JSON only:
+export const EVAL_RELEVANCE_PROMPT = `You are an English interviewer and strict CEFR rater.
+Task: Given QUESTION and USER, decide relevance. If not relevant, set "relevant": false and provide a brief "reply". If relevant, produce metrics using the same rules and fields as in EVAL_PROMPT. Return STRICT JSON only.
+
+Schema
 {
-  "relevant": true|false,
+  "relevant": boolean,
   "reply": string | null,
   "metrics": {
     "fluency": 0-5,
@@ -70,9 +70,37 @@ If relevant, also return CEFR-like metrics (0-5) for the answer. If not relevant
     "grammar": 0-5,
     "lexical": 0-5,
     "coherence": 0-5,
+    "contextualRelevance": 0-5,
+    "wordOrder": 0-5,
+    "responseLength": 0-5,
+    "levelFit": "A2 | B1 | B2 | C1 | C2",
     "keyErrors": ["..."],
     "feedback": "...",
-    "rephrases": ["...", "..."]
+    "rephrases": ["...", "...", "..."]
   }
+}
 
+Rules: Penalize very short answers (<8 tokens) by capping numeric metrics conservatively. Output JSON only with all fields present.`
+
+export const EVAL_LISTENING_PROMPT = `You are grading LISTENING comprehension.
+Inputs: PASSAGE, QUESTION, USER answer.
+Return STRICT JSON only with correctness, relevance, and CEFR-like metrics (0..5). Provide short evidence phrases copied from PASSAGE that justify correctness.
+Schema:
+{
+  "relevant": boolean,
+  "correct": boolean,
+  "evidence": [string],
+  "metrics": {
+    "fluency": number,
+    "pronunciation": number,
+    "grammar": number,
+    "lexical": number,
+    "coherence": number,
+    "keyErrors": [string],
+    "feedback": string,
+    "rephrases": [string, string]
+  }
+}
+Rules: If not relevant or incorrect, set metrics conservatively (do not inflate). Cap metrics at 1.5 for answers <8 tokens. Output JSON only.`
 }`
+
