@@ -3,7 +3,7 @@
  * Відповідь моделі повинна бути СТРОГО у форматі JSON без додаткового тексту.
  */
 
-export const EVAL_PROMPT = `You are a stringent CEFR examiner.
+export const EVAL_PROMPT = String.raw`You are a stringent CEFR examiner.
 Always return JSON only with ALL fields present (no prose). Numeric scores must be 0..5.
 
 Schema
@@ -57,7 +57,7 @@ export const FOLLOWUP_PROMPTS = [
 
 
 // Класифікація доречності відповіді і умовне оцінювання
-export const EVAL_RELEVANCE_PROMPT = `You are an English interviewer and strict CEFR rater.
+export const EVAL_RELEVANCE_PROMPT = String.raw`You are an English interviewer and strict CEFR rater.
 Task: Given QUESTION and USER, decide relevance. If not relevant, set "relevant": false and provide a brief "reply". If relevant, produce metrics using the same rules and fields as in EVAL_PROMPT. Return STRICT JSON only.
 
 Schema
@@ -82,7 +82,7 @@ Schema
 
 Rules: Penalize very short answers (<8 tokens) by capping numeric metrics conservatively. Output JSON only with all fields present.`
 
-export const EVAL_LISTENING_PROMPT = `You are grading LISTENING comprehension.
+export const EVAL_LISTENING_PROMPT = String.raw`You are grading LISTENING comprehension.
 Inputs: PASSAGE, QUESTION, USER answer.
 Return STRICT JSON only with correctness, relevance, and CEFR-like metrics (0..5). Provide short evidence phrases copied from PASSAGE that justify correctness.
 Schema:
@@ -102,5 +102,3 @@ Schema:
   }
 }
 Rules: If not relevant or incorrect, set metrics conservatively (do not inflate). Cap metrics at 1.5 for answers <8 tokens. Output JSON only.`
-}`
-
