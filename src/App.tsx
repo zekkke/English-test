@@ -3,6 +3,7 @@ import Auth from './components/Auth.tsx'
 import WritingTest from './components/WritingTest.tsx'
 import SpeakingTest from './components/SpeakingTest.tsx'
 import CombinedScoreCard from './components/CombinedScoreCard.tsx'
+import { ScoreCard } from './components/ScoreCard.tsx'
 
 // Note: legacy InterviewApp removed to avoid unused warnings in CI
 
@@ -34,6 +35,23 @@ export default function App() {
       />
     )
   }
+
+  return (
+    <div className="min-h-screen flex flex-col p-4">
+      <div className="max-w-5xl mx-auto w-full">
+        {writingResult && speakingResult ? (
+          <CombinedScoreCard writing={{ report: writingResult.report }} speaking={{ report: speakingResult.report }} />
+        ) : speakingResult ? (
+          <ScoreCard photoDataUrl={null} report={speakingResult.report} messages={speakingResult.messages} timeExpired={speakingResult.timeExpired} />
+        ) : writingResult ? (
+          <ScoreCard photoDataUrl={null} report={writingResult.report} messages={writingResult.messages} timeExpired={writingResult.timeExpired} />
+        ) : (
+          <div className="rounded-2xl bg-white/10 text-white p-6">Results are not available.</div>
+        )}
+      </div>
+    </div>
+  )
+}
 
   return (
     <div className="min-h-screen flex flex-col p-4">
