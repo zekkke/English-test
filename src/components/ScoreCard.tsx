@@ -160,3 +160,5 @@ export function ScoreCard({ photoDataUrl, report, messages = [], timeExpired = f
     </div>
   )
 }
+
+export default ScoreCard
