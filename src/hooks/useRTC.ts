@@ -15,7 +15,19 @@ export function useRTC({ enabled }: Params) {
     const run = async () => {
       if (!enabled) return
       try {
-        const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        // Progressive acquisition: try video+audio, then gracefully fall back to audio-only
+        let s: MediaStream | null = null
+        try {
+          s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        } catch (e: any) {
+          // If camera is blocked by policy or user, still try to proceed with audio-only
+          try { console.warn('[RTC] video+audio failed, trying audio-only. reason=', e?.name || e) } catch {}
+          try {
+            s = await navigator.mediaDevices.getUserMedia({ audio: true })
+          } catch (ee) {
+            throw ee
+          }
+        }
         if (cancelled) return
         setStream(s)
         const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -73,5 +85,3 @@ export function useRTC({ enabled }: Params) {
 
   return { stream, micLevel, onExternalEnergy, tick, stop }
 }
-
-
