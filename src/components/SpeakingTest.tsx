@@ -199,12 +199,17 @@ export default function SpeakingTest({ onFinished }: Props) {
           await recordPcmAndSendToGoogle()
           if (llm.state === 'listening') timer = window.setTimeout(run, 500)
         }
+        // Start audio pipeline first; WebSpeech will start only if gUM succeeded before
         timer = window.setTimeout(run, 500)
-        try { webAsr.start() } catch {}
+        if (rtc.stream) {
+          try { webAsr.start() } catch {}
+        } else {
+          try { console.warn('[WS] delayed start until media stream ready') } catch {}
+        }
       }
     } else { stopCurrentAsr(); setAnswerBuffer('') }
     return () => { if (timer) window.clearTimeout(timer) }
-  }, [llm.state, isAndroid, recordPcmAndSendToGoogle])
+  }, [llm.state, isAndroid, recordPcmAndSendToGoogle, rtc.stream])
 
   const handleFinishAnswer = useCallback(() => {
     try { console.log('[UI] handleFinishAnswer invoked, state=', llm.state, 'buffer=', answerBuffer) } catch {}
@@ -302,5 +307,3 @@ export default function SpeakingTest({ onFinished }: Props) {
     </div>
   )
 }
-
-
